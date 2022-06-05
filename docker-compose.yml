@@ -1,0 +1,93 @@
+version: '3.7'
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./prometheus-src:/var/lib/prometheus
+      - ./prometheus:/etc/prometheus
+      - ./prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.config.file=/etc/prometheus/web.config.yml'
+    ports:
+      - 9090:9090
+  
+  node_exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    container_name: node_exporter
+    command:
+      - '--path.rootfs=/host'
+      - '--web.config=/host/node-exporter-web/config.yml'
+    network_mode: host
+    pid: host
+    restart: unless-stopped
+    volumes:
+      - '/:/host:ro,rslave'
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    user: <USER_ID>
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana-data:/var/lib/grafana:rw
+    restart: unless-stopped
+
+  blackbox:
+    image: prom/blackbox-exporter
+    ports:
+      - 9115:9115
+    restart: unless-stopped
+    volumes:
+      - "./config:/config"
+    command:
+      - "--config.file=/config/blackbox.yml"
+
+  alertmanager:
+    image: prom/alertmanager
+    ports:
+      - 9093:9093
+    volumes:
+      - ./alertmanager/:/etc/alertmanager/
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+
+  pushgateway:
+    image: prom/pushgateway
+    container_name: pushgateway
+    ports:
+      - 9091:9091
+
+  cadvisor:
+    image: google/cadvisor:latest
+    container_name: cadvisor
+    network_mode: host
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    restart: unless-stopped
+
+  apache_exporter:
+    image: ubuntu:latest
+    container_name: apache_exporter
+    command:
+      - '/host/root/apache_exporter/apache-exporter-src/apache_exporter'
+    network_mode: host
+    pid: host
+    restart: unless-stopped
+    volumes:
+      - '/:/host:ro,rslave'
